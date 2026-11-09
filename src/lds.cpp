@@ -163,6 +163,16 @@ void Lds::StoragePointData(PointFrame* frame) {
       printf("Storage point data failed, lidar type:%u, handle:%u.\n", lidar_point.lidar_type, lidar_point.handle);
       continue;
     }
+    // A configured MID-360 may already be streaming when the driver starts. In
+    // that case SDK2 receives valid point packets without first delivering the
+    // info-change callback which normally switches this state to Sampling.
+    // Receiving a decoded point frame is sufficient proof that sampling is
+    // active; without this fallback Lddc leaves the queue unpublished forever.
+    LidarDevice *p_lidar = &lidars_[index];
+    if (p_lidar->connect_state != kConnectStateSampling) {
+      printf("Lidar[%u] point data received, switch state to Sampling.\n", index);
+      p_lidar->connect_state = kConnectStateSampling;
+    }
     PushLidarData(&lidar_point, index, base_time);
   }
 }
